@@ -1,9 +1,9 @@
 import sys
 import os
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog, 
-                             QLabel, QLineEdit, QMessageBox, QProgressBar, QSpacerItem, QSizePolicy)
+                             QLabel, QLineEdit, QMessageBox, QProgressBar, QSpacerItem, QSizePolicy, QFrame)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QObject
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QFont
 from PIL import Image
 import cv2
 import numpy as np
@@ -31,73 +31,72 @@ class ReceiptProcessorApp(QWidget):
     def __init__(self):
         super().__init__()
         self.input_folder = ''
-        self.progress_label = QLabel('', self)  # 在这里初始化 progress_label
+        self.progress_label = QLabel('', self)
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle('Receipt Processor')
-        self.setGeometry(100, 100, 500, 300)
+        self.setGeometry(100, 100, 600, 400)
 
         main_layout = QVBoxLayout()
 
-        # 添加图片按钮和图片数量显示
-        folder_layout = QHBoxLayout()
-        self.add_button = QPushButton('选择图片文件夹', self)
+        # STEP 1: 选择图片文件夹
+        step1_layout = self.create_step_layout("STEP 1", "选择图片文件夹")
+        self.add_button = step1_layout.itemAt(2).widget()
         self.add_button.clicked.connect(self.add_images)
-        folder_layout.addWidget(self.add_button)
         self.image_count_label = QLabel('', self)
-        folder_layout.addWidget(self.image_count_label)
-        main_layout.addLayout(folder_layout)
+        step1_layout.addWidget(self.image_count_label)
+        main_layout.addLayout(step1_layout)
 
         # 显示选择的文件夹路径
         self.folder_label = QLabel('未选择文件夹', self)
         main_layout.addWidget(self.folder_label)
 
-        # 提取发票按钮和进度条
-        extract_layout = QHBoxLayout()
-        self.extract_button = QPushButton('提取发票', self)
+        main_layout.addWidget(self.create_separator())
+
+        # STEP 2: 提取发票
+        step2_layout = self.create_step_layout("STEP 2", "提取发票")
+        self.extract_button = step2_layout.itemAt(2).widget()
         self.extract_button.clicked.connect(self.extract_receipts)
-        self.extract_button.setFixedWidth(100)
-        extract_layout.addWidget(self.extract_button)
         self.extract_progress = QProgressBar(self)
-        extract_layout.addWidget(self.extract_progress)
-        extract_layout.addWidget(self.progress_label)
-        main_layout.addLayout(extract_layout)
+        step2_layout.addWidget(self.extract_progress)
+        step2_layout.addWidget(self.progress_label)
+        main_layout.addLayout(step2_layout)
 
-        # 缩小倍数输入框和resize按钮
-        resize_layout = QHBoxLayout()
-        resize_layout.addWidget(QLabel('缩小倍数 (0-1):'))
+        main_layout.addWidget(self.create_separator())
+
+        # STEP 3: Resize
+        step3_layout = self.create_step_layout("STEP 3", "Resize")
+        resize_input_layout = QHBoxLayout()
+        resize_input_layout.addWidget(QLabel('缩小倍数 (0-1):'))
         self.resize_input = QLineEdit('0.3', self)
-        resize_layout.addWidget(self.resize_input)
-        self.resize_button = QPushButton('Resize', self)
+        resize_input_layout.addWidget(self.resize_input)
+        self.resize_button = step3_layout.itemAt(2).widget()
         self.resize_button.clicked.connect(self.resize_images)
-        resize_layout.addWidget(self.resize_button)
-        main_layout.addLayout(resize_layout)
+        step3_layout.addLayout(resize_input_layout)
+        main_layout.addLayout(step3_layout)
 
-        # 开始排列按钮和进度条
-        arrange_layout = QHBoxLayout()
-        self.start_button = QPushButton('开始排列', self)
+        main_layout.addWidget(self.create_separator())
+
+        # STEP 4: 开始排列
+        step4_layout = self.create_step_layout("STEP 4", "开始排列")
+        self.start_button = step4_layout.itemAt(2).widget()
         self.start_button.clicked.connect(self.start_processing)
-        self.start_button.setFixedWidth(100)
-        arrange_layout.addWidget(self.start_button)
         self.arrange_progress = QProgressBar(self)
-        arrange_layout.addWidget(self.arrange_progress)
-        main_layout.addLayout(arrange_layout)
+        step4_layout.addWidget(self.arrange_progress)
+        main_layout.addLayout(step4_layout)
 
-        # 添加伸缩空间
         main_layout.addStretch(1)
 
         # 添加logo、开发者信息和版本号
         bottom_layout = QHBoxLayout()
 
-        logo_dev_layout = QVBoxLayout()
         logo_label = QLabel(self)
         pixmap = QPixmap('logo.jpg')
-        scaled_pixmap = pixmap.scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        scaled_pixmap = pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         logo_label.setPixmap(scaled_pixmap)
-        logo_dev_layout.addWidget(logo_label)
+        bottom_layout.addWidget(logo_label)
 
-        bottom_layout.addLayout(logo_dev_layout)
         bottom_layout.addStretch(1)
 
         dev_version_layout = QVBoxLayout()
@@ -115,12 +114,46 @@ class ReceiptProcessorApp(QWidget):
 
         self.setLayout(main_layout)
 
+    def create_step_layout(self, step_text, button_text):
+        layout = QHBoxLayout()
+        step_label = QLabel(step_text, self)
+        step_label.setFont(QFont('Arial', 12, QFont.Bold))
+        layout.addWidget(step_label)
+        layout.addSpacing(20)
+        button = QPushButton(button_text, self)
+        button.setFixedWidth(120)
+        layout.addWidget(button)
+        layout.addStretch(1)
+        return layout
+
+    def create_separator(self):
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        return line
+
+    def disable_all_except(self, exception):
+        for layout in [self.layout().itemAt(i).layout() for i in range(self.layout().count()) if isinstance(self.layout().itemAt(i), QHBoxLayout)]:
+            for i in range(layout.count()):
+                item = layout.itemAt(i).widget()
+                if isinstance(item, QPushButton) and item != exception:
+                    item.setEnabled(False)
+
+    def enable_all(self):
+        for layout in [self.layout().itemAt(i).layout() for i in range(self.layout().count()) if isinstance(self.layout().itemAt(i), QHBoxLayout)]:
+            for i in range(layout.count()):
+                item = layout.itemAt(i).widget()
+                if isinstance(item, QPushButton):
+                    item.setEnabled(True)
+
     def add_images(self):
+        self.disable_all_except(self.add_button)
         self.input_folder = QFileDialog.getExistingDirectory(self, "选择图片文件夹")
         if self.input_folder:
             self.folder_label.setText(f'已选择文件夹: {self.input_folder}')
             image_count = len([f for f in os.listdir(self.input_folder) if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
             self.image_count_label.setText(f'有{image_count}张图片需要整理')
+        self.enable_all()
 
     def extract_receipts(self):
         if not self.input_folder:
@@ -132,7 +165,7 @@ class ReceiptProcessorApp(QWidget):
             os.makedirs(receipts_folder)
 
         try:
-            self.extract_button.setEnabled(False)
+            self.disable_all_except(self.extract_button)
             self.extract_progress.setValue(0)
 
             # 创建一个 QThread 对象
@@ -152,7 +185,7 @@ class ReceiptProcessorApp(QWidget):
 
             # 最后，线程结束时恢复按钮状态并显示完成消息
             self.thread.finished.connect(
-                lambda: self.extract_button.setEnabled(True)
+                lambda: self.enable_all()
             )
             self.thread.finished.connect(
                 lambda: QMessageBox.information(self, "完成", "发票提取完成！结果保存在 receipts 文件夹中。")
@@ -160,7 +193,7 @@ class ReceiptProcessorApp(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "错误", f"处理图片时发生错误：{str(e)}")
-            self.extract_button.setEnabled(True)
+            self.enable_all()
 
     def update_extract_progress(self, value, current, total):
         self.extract_progress.setValue(value)
@@ -203,14 +236,14 @@ class ReceiptProcessorApp(QWidget):
             os.makedirs(output_folder)
 
         try:
+            self.disable_all_except(self.start_button)
             self.worker = WorkerThread(self.process_images, resize_folder, output_folder)
             self.worker.progress.connect(self.update_arrange_progress)
             self.worker.finished.connect(self.on_arrange_finished)
             self.worker.start()
-            self.start_button.setEnabled(False)
         except Exception as e:
             QMessageBox.critical(self, "错误", f"处理图片时发生错误：{str(e)}")
-            self.start_button.setEnabled(True)
+            self.enable_all()
 
     def process_images(self, resize_folder, output_folder, progress_callback):
         try:
@@ -227,14 +260,14 @@ class ReceiptProcessorApp(QWidget):
                 progress_callback(int((i + 1) / total_pages * 100))
             
         except Exception as e:
-            print(f"处理图片时发生错误��{str(e)}")
+            print(f"处理图片时发生错误：{str(e)}")
             raise
 
     def update_arrange_progress(self, value):
         self.arrange_progress.setValue(value)
 
     def on_arrange_finished(self):
-        self.start_button.setEnabled(True)
+        self.enable_all()
         QMessageBox.information(self, "完成", "图片排列完成！输出已保存到 output 文件夹。")
 
 # 添加一个新的 Worker 类来处理后台任务
