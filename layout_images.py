@@ -1,6 +1,6 @@
 import os
 import math
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 # A4纸的尺寸（像素，300dpi）
 A4_WIDTH = 2480
@@ -9,6 +9,10 @@ A4_HEIGHT = 3508
 # 最小边距和图片间距
 MIN_MARGIN = 5
 MIN_SPACING = 5
+
+# 字体设置
+FONT_SIZE = 50
+FONT_COLOR = (0, 0, 0)  # 蓝色
 
 def get_image_sizes(folder_path):
     image_sizes = []
@@ -67,11 +71,26 @@ def layout_images(image_sizes):
 
     return pages
 
+def add_filename_to_image(img, filename):
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", FONT_SIZE)
+    
+    # 移除文件扩展名
+    filename_without_ext = os.path.splitext(filename)[0]
+    
+    # 添加文字阴影以增加可读性
+    shadow_color = (0, 0, 0)  # 黑色阴影
+    draw.text((21, 21), filename_without_ext, font=font, fill=shadow_color)
+    
+    # 添加蓝色文字
+    draw.text((20, 20), filename_without_ext, font=font, fill=FONT_COLOR)
+
 def create_pages(pages, input_folder, output_folder):
     for i, page in enumerate(pages):
         canvas = Image.new('RGB', (A4_WIDTH, A4_HEIGHT), 'white')
         for filename, size, position in page:
             with Image.open(os.path.join(input_folder, filename)) as img:
+                add_filename_to_image(img, filename)
                 canvas.paste(img, position)
         canvas.save(os.path.join(output_folder, f'page_{i+1}.png'))
         print(f'Created page_{i+1}.png with {len(page)} images')
