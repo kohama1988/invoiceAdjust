@@ -2,40 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-import pytesseract
-
-def detectTextOrientation(image):
-    # 使用Tesseract检测文字方向
-    osd = pytesseract.image_to_osd(image)
-    angle = int(osd.split('\n')[2].split(':')[1].strip())
-    return angle
-
-def rotateImage(image, angle):
-    # 获取图像尺寸
-    (h, w) = image.shape[:2]
-    
-    # 计算新图像的尺寸
-    (cX, cY) = (w // 2, h // 2)
-    
-    # 计算旋转矩阵
-    M = cv2.getRotationMatrix2D((cX, cY), angle, 1.0)
-    
-    # 进行仿射变换
-    cos = np.abs(M[0, 0])
-    sin = np.abs(M[0, 1])
-    
-    # 计算新图像的边界
-    nW = int((h * sin) + (w * cos))
-    nH = int((h * cos) + (w * sin))
-    
-    # 调整旋转矩阵
-    M[0, 2] += (nW / 2) - cX
-    M[1, 2] += (nH / 2) - cY
-    
-    # 执行仿射变换
-    rotated = cv2.warpAffine(image, M, (nW, nH), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-    
-    return rotated
+from utils import detectTextOrientation, rotateImage
 
 def detectAndCorrectReceipt(image_path, ls=180, hs=255):
     # 读取图像
@@ -102,11 +69,11 @@ def detectAndCorrectReceipt(image_path, ls=180, hs=255):
     print(f"处理后的图像已保存到: {output_path}")
 
     # 显示原始图像和纠正后的图像
-    plt.figure(figsize=(15, 5))
-    plt.subplot(131), plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB)), plt.title('原始图像')
-    plt.subplot(132), plt.imshow(cv2.cvtColor(warped, cv2.COLOR_BGR2RGB)), plt.title('纠正后的图像')
-    plt.subplot(133), plt.imshow(cv2.cvtColor(rotated, cv2.COLOR_BGR2RGB)), plt.title('最终图像')
+    plt.figure(figsize=(10, 5))
+    plt.subplot(121), plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB)), plt.title('Original')
+    plt.subplot(122), plt.imshow(cv2.cvtColor(rotated, cv2.COLOR_BGR2RGB)), plt.title('Abstracted')
     plt.show()
 
 # 处理图片
-detectAndCorrectReceipt('receipt/IMG_4122.jpg')
+if __name__ == "__main__":
+    detectAndCorrectReceipt('receipt/IMG_4109.jpg')
