@@ -22,14 +22,24 @@ class WorkerThread(QThread):
         self.function = function
         self.args = args
         self.kwargs = kwargs
+        self.is_running = True
 
     def run(self):
-        self.function(*self.args, **self.kwargs, progress_callback=self.progress.emit)
+        self.is_running = True
+        self.function(*self.args, **self.kwargs, progress_callback=self.progress.emit, stop_check=self.stop_check)
         self.finished.emit()
+
+    def stop_check(self):
+        return not self.is_running
+
+    def quit(self):
+        self.is_running = False
+        super().quit()
 
 class ReceiptProcessorApp(QWidget):
     def __init__(self):
         super().__init__()
+        self.threads = []
         self.input_folder = ''
         self.progress_label = QLabel('', self)
         self.initUI()
@@ -41,7 +51,7 @@ class ReceiptProcessorApp(QWidget):
         main_layout = QVBoxLayout()
 
         # STEP 1: 选择图片文件夹
-        step1_layout = self.create_step_layout("STEP 1", "选择图片文件夹")
+        step1_layout = self.create_step_layout("STEP 1", "select folder")
         self.add_button = step1_layout.itemAt(2).widget()
         self.add_button.clicked.connect(self.add_images)
         self.image_count_label = QLabel('', self)
@@ -49,13 +59,13 @@ class ReceiptProcessorApp(QWidget):
         main_layout.addLayout(step1_layout)
 
         # 显示选择的文件夹路径
-        self.folder_label = QLabel('未选择文件夹', self)
+        self.folder_label = QLabel('Not select folder yet', self)
         main_layout.addWidget(self.folder_label)
 
         main_layout.addWidget(self.create_separator())
 
         # STEP 2: 提取发票
-        step2_layout = self.create_step_layout("STEP 2", "提取发票")
+        step2_layout = self.create_step_layout("STEP 2", "Extract Receipts")
         self.extract_button = step2_layout.itemAt(2).widget()
         self.extract_button.clicked.connect(self.extract_receipts)
         self.extract_progress = QProgressBar(self)
@@ -68,7 +78,7 @@ class ReceiptProcessorApp(QWidget):
         # STEP 3: Resize
         step3_layout = self.create_step_layout("STEP 3", "Resize")
         resize_input_layout = QHBoxLayout()
-        resize_input_layout.addWidget(QLabel('缩小倍数 (0-1):'))
+        resize_input_layout.addWidget(QLabel('Scale factor (0-1):'))
         self.resize_input = QLineEdit('0.3', self)
         resize_input_layout.addWidget(self.resize_input)
         self.resize_button = step3_layout.itemAt(2).widget()
@@ -79,7 +89,7 @@ class ReceiptProcessorApp(QWidget):
         main_layout.addWidget(self.create_separator())
 
         # STEP 4: 开始排列
-        step4_layout = self.create_step_layout("STEP 4", "开始排列")
+        step4_layout = self.create_step_layout("STEP 4", "Arrange")
         self.start_button = step4_layout.itemAt(2).widget()
         self.start_button.clicked.connect(self.start_processing)
         self.arrange_progress = QProgressBar(self)
@@ -148,16 +158,16 @@ class ReceiptProcessorApp(QWidget):
 
     def add_images(self):
         self.disable_all_except(self.add_button)
-        self.input_folder = QFileDialog.getExistingDirectory(self, "选择图片文件夹")
+        self.input_folder = QFileDialog.getExistingDirectory(self, "Select Folder...")
         if self.input_folder:
-            self.folder_label.setText(f'已选择文件夹: {self.input_folder}')
+            self.folder_label.setText(f'Selected folder: {self.input_folder}')
             image_count = len([f for f in os.listdir(self.input_folder) if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
-            self.image_count_label.setText(f'有{image_count}张图片需要整理')
+            self.image_count_label.setText(f'{image_count} images found')
         self.enable_all()
 
     def extract_receipts(self):
         if not self.input_folder:
-            QMessageBox.warning(self, "警告", "请先选择图片文件夹！")
+            QMessageBox.warning(self, "Warning", "Please select a folder first!")
             return
 
         receipts_folder = os.path.join(self.input_folder, 'receipts')
@@ -170,6 +180,7 @@ class ReceiptProcessorApp(QWidget):
 
             # 创建一个 QThread 对象
             self.thread = QThread()
+            self.threads.append(self.thread)  # Add to thread list
             # 创建一个 worker 对象
             self.worker = Worker(detectAndCorrectReceipt, self.input_folder)
             # 将 worker 移动到线程
@@ -188,11 +199,11 @@ class ReceiptProcessorApp(QWidget):
                 lambda: self.enable_all()
             )
             self.thread.finished.connect(
-                lambda: QMessageBox.information(self, "完成", "发票提取完成！结果保存在 receipts 文件夹中。")
+                lambda: QMessageBox.information(self, "Completed", "Receipts extracted and saved in receipts folder.")
             )
 
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"处理图片时发生错误：{str(e)}")
+            QMessageBox.critical(self, "Error", f"Error occurred while processing images: {str(e)}")
             self.enable_all()
 
     def update_extract_progress(self, value, current, total):
@@ -201,14 +212,14 @@ class ReceiptProcessorApp(QWidget):
 
     def resize_images(self):
         if not self.input_folder:
-            QMessageBox.warning(self, "警告", "请先选择图片文件夹！")
+            QMessageBox.warning(self, "Warning", "Please select a folder first!")
             return
         try:
             scale_factor = float(self.resize_input.text())
             if not 0 < scale_factor <= 1:
                 raise ValueError
         except ValueError:
-            QMessageBox.warning(self, "警告", "请输入有效的缩小倍数（0-1之间的小数）！")
+            QMessageBox.warning(self, "Warning", "Please enter a valid scale factor (between 0 and 1)!")
             return
 
         receipts_folder = os.path.join(self.input_folder, 'receipts')
@@ -222,11 +233,11 @@ class ReceiptProcessorApp(QWidget):
                 output_path = os.path.join(resize_folder, filename)
                 resize_image(input_path, output_path, scale_factor)
 
-        QMessageBox.information(self, "完成", "图片缩放完成！结果保存在 resize 文件夹中。")
+        QMessageBox.information(self, "Completed", "Images resized and saved in resize folder.")
 
     def start_processing(self):
         if not self.input_folder:
-            QMessageBox.warning(self, "警告", "请先选择图片文件夹！")
+            QMessageBox.warning(self, "Warning", "Please select a folder first!")
             return
 
         resize_folder = os.path.join(self.input_folder, 'resize')
@@ -238,14 +249,15 @@ class ReceiptProcessorApp(QWidget):
         try:
             self.disable_all_except(self.start_button)
             self.worker = WorkerThread(self.process_images, resize_folder, output_folder)
+            self.threads.append(self.worker)  # Add to thread list
             self.worker.progress.connect(self.update_arrange_progress)
             self.worker.finished.connect(self.on_arrange_finished)
             self.worker.start()
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"处理图片时发生错误：{str(e)}")
+            QMessageBox.critical(self, "Error", f"Error occurred while processing images: {str(e)}")
             self.enable_all()
 
-    def process_images(self, resize_folder, output_folder, progress_callback):
+    def process_images(self, resize_folder, output_folder, progress_callback, stop_check):
         try:
             image_sizes = [(f, Image.open(os.path.join(resize_folder, f)).size) 
                            for f in os.listdir(resize_folder) 
@@ -257,10 +269,12 @@ class ReceiptProcessorApp(QWidget):
             create_pages(pages, resize_folder, output_folder)
             
             for i in range(total_pages):
+                if stop_check():
+                    break
                 progress_callback(int((i + 1) / total_pages * 100))
             
         except Exception as e:
-            print(f"处理图片时发生错误：{str(e)}")
+            print(f"Error occurred while processing images: {str(e)}")
             raise
 
     def update_arrange_progress(self, value):
@@ -268,7 +282,14 @@ class ReceiptProcessorApp(QWidget):
 
     def on_arrange_finished(self):
         self.enable_all()
-        QMessageBox.information(self, "完成", "图片排列完成！输出已保存到 output 文件夹。")
+        QMessageBox.information(self, "Completed", "Images arranged and saved in output folder.")
+
+    def closeEvent(self, event):
+        # Stop all threads
+        for thread in self.threads:
+            thread.quit()
+            thread.wait()
+        super().closeEvent(event)
 
 # 添加一个新的 Worker 类来处理后台任务
 class Worker(QObject):
@@ -289,4 +310,8 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = ReceiptProcessorApp()
     ex.show()
-    sys.exit(app.exec_())
+    app.exec_()
+    # Ensure all threads have stopped
+    for thread in ex.threads:
+        thread.quit()
+        thread.wait()
