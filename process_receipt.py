@@ -84,7 +84,17 @@ def process_single_image(uploaded_file, new_image_name):
 
 def detectAndCorrectReceipt(uploaded_file, new_image_name):
     """处理并提取发票部分"""
-    return process_single_image(uploaded_file, new_image_name)
+    try:
+        extracted_image = process_single_image(uploaded_file, new_image_name)
+        if extracted_image is not None:
+            print(f"Successfully processed image: {new_image_name}")
+            return extracted_image
+        else:
+            print(f"Failed to process image: {new_image_name}")
+            return None
+    except Exception as e:
+        print(f"Error in detectAndCorrectReceipt: {str(e)}")
+        return None
 
 # 处理图片
 if __name__ == "__main__":

@@ -51,11 +51,13 @@ if uploaded_files:
         # Show extracting indicator
         progress_bar = st.sidebar.progress(0)  # Initialize progress bar
         total_images = len(uploaded_files)
+        st.write(f"Processing {total_images} images...")
 
         with st.spinner("Extracting receipts..."):
             for idx, uploaded_file in enumerate(uploaded_files):
                 # Use user-inputted new name
                 new_image_name = image_names[uploaded_file.name]
+                st.write(f"Processing image: {new_image_name}")
                 
                 # 将提取后的发票保存到字典中
                 extracted_image = detectAndCorrectReceipt(uploaded_file, new_image_name)  # Pass the uploaded file and new name
@@ -65,22 +67,25 @@ if uploaded_files:
                     extracted_image.save(img_byte_arr, format='PNG')
                     img_byte_arr = img_byte_arr.getvalue()
                     st.session_state.extracted_images[new_image_name] = img_byte_arr  # Save to session state
-                    logging.info(f"Successfully extracted and saved image: {new_image_name}")
-                    st.write(f"Extracted image size: {len(img_byte_arr)} bytes")  # 添加调试信息
+                    st.write(f"Successfully extracted and saved image: {new_image_name}")
+                    st.write(f"Extracted image size: {len(img_byte_arr)} bytes")
                 else:
-                    logging.warning(f"Failed to extract image: {new_image_name}")
+                    st.write(f"Failed to extract image: {new_image_name}")
 
                 # Update progress bar and percentage
                 progress = (idx + 1) / total_images
                 progress_bar.progress(progress)
 
-        st.sidebar.success("Receipts extracted successfully!")
-        logging.info(f"Total extracted images: {len(st.session_state.extracted_images)}")
+        st.sidebar.success(f"Receipts extracted successfully! Total: {len(st.session_state.extracted_images)}")
+        st.write(f"Total extracted images: {len(st.session_state.extracted_images)}")
 
     # Display extracted images as thumbnails with delete button
     if st.session_state.extracted_images:
         st.subheader("Extracted Receipts")
         st.write(f"Number of extracted images: {len(st.session_state.extracted_images)}")
+        st.write("Extracted image names:")
+        st.write(list(st.session_state.extracted_images.keys()))
+        
         cols = st.columns(10)  # Display 10 images per row
         for i, (name, img_bytes) in enumerate(list(st.session_state.extracted_images.items())):
             with cols[i % 10]:  # Change row every 10 images
@@ -93,14 +98,15 @@ if uploaded_files:
                 # Display thumbnail
                 try:
                     container.image(img_bytes, caption=name, use_column_width='auto', width=100)
-                    logging.info(f"Successfully displayed image: {name}")
+                    st.write(f"Successfully displayed image: {name}")
                 except Exception as e:
-                    logging.error(f"Failed to display image {name}: {str(e)}")
-                    st.write(f"Error displaying image {name}: {str(e)}")  # 添加错误信息到页面
+                    st.write(f"Error displaying image {name}: {str(e)}")
             if (i + 1) % 10 == 0:
                 st.write("")  # Add a new line after every 10 images
     else:
         st.write("No extracted images to display.")
+        st.write("Debug: session_state contents:")
+        st.write(st.session_state)
 
     # Resize images
     scale_factor = st.sidebar.slider("Scale Factor (0-1)", 0.1, 1.0, 0.3)
