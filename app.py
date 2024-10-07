@@ -1,5 +1,6 @@
 import streamlit as st
 from PIL import Image
+import io
 from process_receipt import detectAndCorrectReceipt
 from resize import resize_image
 from layout_images import layout_images, create_pages, main
@@ -55,7 +56,11 @@ if uploaded_files:
                 # 将提取后的发票保存到字典中
                 extracted_image = detectAndCorrectReceipt(uploaded_file, new_image_name)  # Pass the uploaded file and new name
                 if extracted_image is not None:
-                    st.session_state.extracted_images[new_image_name] = extracted_image  # Save to session state
+                    # 将 PIL Image 转换为 bytes
+                    img_byte_arr = io.BytesIO()
+                    extracted_image.save(img_byte_arr, format='PNG')
+                    img_byte_arr = img_byte_arr.getvalue()
+                    st.session_state.extracted_images[new_image_name] = img_byte_arr  # Save to session state
 
                 # Update progress bar and percentage
                 progress = (idx + 1) / total_images
@@ -67,16 +72,16 @@ if uploaded_files:
     if st.session_state.extracted_images:
         st.subheader("Extracted Receipts")
         cols = st.columns(10)  # Display 10 images per row
-        for i, (name, img) in enumerate(list(st.session_state.extracted_images.items())):
+        for i, (name, img_bytes) in enumerate(list(st.session_state.extracted_images.items())):
             with cols[i % 10]:  # Change row every 10 images
                 # Create a container for the image and delete button
                 container = st.container()
                 # Add delete button
                 if container.button("X", key=f"delete_{name}"):
                     del st.session_state.extracted_images[name]
-                    st.rerun()  # 使用 st.rerun() 替代 st.experimental_rerun()
+                    st.rerun()
                 # Display thumbnail
-                container.image(img, caption=name, use_column_width='auto', width=100)
+                container.image(img_bytes, caption=name, use_column_width='auto', width=100)
             if (i + 1) % 10 == 0:
                 st.write("")  # Add a new line after every 10 images
 
@@ -87,16 +92,23 @@ if uploaded_files:
         st.session_state.resized_images.clear()  # Clear previous entries
         
         if st.session_state.extracted_images:
-            for name, img in st.session_state.extracted_images.items():
+            for name, img_bytes in st.session_state.extracted_images.items():
+                img = Image.open(io.BytesIO(img_bytes))
                 resized_image = resize_image(img, scale_factor)  # Resize and get the resized image
-                st.session_state.resized_images[name] = resized_image  # Save resized image to session state
+                # 将调整大小后的图像转换为 bytes
+                resized_img_byte_arr = io.BytesIO()
+                resized_image.save(resized_img_byte_arr, format='PNG')
+                resized_img_byte_arr = resized_img_byte_arr.getvalue()
+                st.session_state.resized_images[name] = resized_img_byte_arr  # Save resized image to session state
 
             st.sidebar.success("Images resized successfully!")
 
     # Auto arrange
     if st.sidebar.button("Auto Arrange"):
         if st.session_state.resized_images:
-            arranged_pages = main(st.session_state.resized_images)  # 现在可以正确调用 main 函数
+            # 将 bytes 转换回 PIL Image 对象
+            resized_images_pil = {name: Image.open(io.BytesIO(img_bytes)) for name, img_bytes in st.session_state.resized_images.items()}
+            arranged_pages = main(resized_images_pil)  # 现在可以正确调用 main 函数
             st.session_state.arranged_pages = arranged_pages
             st.sidebar.success("Images arranged successfully!")
 
@@ -105,7 +117,11 @@ if uploaded_files:
             cols = st.columns(5)  # Display 5 thumbnails per row
             for i, page in enumerate(st.session_state.arranged_pages):
                 with cols[i % 5]:
-                    st.image(page, caption=f"Page {i+1}", use_column_width=True, width=200)  # Display thumbnail
+                    # 将 PIL Image 转换为 bytes
+                    img_byte_arr = io.BytesIO()
+                    page.save(img_byte_arr, format='PNG')
+                    img_byte_arr = img_byte_arr.getvalue()
+                    st.image(img_byte_arr, caption=f"Page {i+1}", use_column_width=True, width=200)  # Display thumbnail
                 if (i + 1) % 5 == 0:
                     st.write("")  # Add a new line after every 5 thumbnails
         else:
