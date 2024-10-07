@@ -104,18 +104,3 @@ def detectAndCorrectReceipt(uploaded_file, new_image_name):
     except Exception as e:
         print(f"Error in detectAndCorrectReceipt: {str(e)}")
         return None
-
-# 处理图片
-if __name__ == "__main__":
-    OCR_METHOD = st.secrets.get("OCR_METHOD", "tesseract")
-
-    if OCR_METHOD == "tesseract":
-        # 使用 pytesseract
-        import pytesseract
-        # ... tesseract 相关代码
-    else:
-        # 使用 EasyOCR
-        import easyocr
-        # ... easyocr 相关代码
-
-    detectAndCorrectReceipt('receipt/IMG_4109.jpg', 'new_image_name')

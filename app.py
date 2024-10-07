@@ -5,6 +5,7 @@ from process_receipt import detectAndCorrectReceipt
 from resize import resize_image
 from layout_images import layout_images, create_pages, main
 import logging
+import numpy as np
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +25,10 @@ if 'extracted_images' not in st.session_state:
     st.session_state.extracted_images = {}
 if 'resized_images' not in st.session_state:
     st.session_state.resized_images = {}
+
+# 旋转图像的函数
+def rotate_image(image, angle):
+    return image.rotate(angle, expand=True)
 
 # Display all uploaded images
 if uploaded_files:
@@ -57,7 +62,6 @@ if uploaded_files:
             for idx, uploaded_file in enumerate(uploaded_files):
                 # Use user-inputted new name
                 new_image_name = image_names[uploaded_file.name]
-                st.write(f"Processing image: {new_image_name}")
                 
                 # 将提取后的发票保存到字典中
                 extracted_image = detectAndCorrectReceipt(uploaded_file, new_image_name)  # Pass the uploaded file and new name
@@ -67,8 +71,6 @@ if uploaded_files:
                     extracted_image.save(img_byte_arr, format='PNG')
                     img_byte_arr = img_byte_arr.getvalue()
                     st.session_state.extracted_images[new_image_name] = img_byte_arr  # Save to session state
-                    st.write(f"Successfully extracted and saved image: {new_image_name}")
-                    st.write(f"Extracted image size: {len(img_byte_arr)} bytes")
                 else:
                     st.write(f"Failed to extract image: {new_image_name}")
 
@@ -79,34 +81,47 @@ if uploaded_files:
         st.sidebar.success(f"Receipts extracted successfully! Total: {len(st.session_state.extracted_images)}")
         st.write(f"Total extracted images: {len(st.session_state.extracted_images)}")
 
-    # Display extracted images as thumbnails with delete button
+    # Display extracted images as thumbnails with delete button and rotation feature
     if st.session_state.extracted_images:
         st.subheader("Extracted Receipts")
-        st.write(f"Number of extracted images: {len(st.session_state.extracted_images)}")
-        st.write("Extracted image names:")
-        st.write(list(st.session_state.extracted_images.keys()))
         
-        cols = st.columns(10)  # Display 10 images per row
+        cols = st.columns(5)  # Display 5 images per row
         for i, (name, img_bytes) in enumerate(list(st.session_state.extracted_images.items())):
-            with cols[i % 10]:  # Change row every 10 images
-                # Create a container for the image and delete button
+            with cols[i % 5]:
+                # Create a container for the image, delete button, and rotation slider
                 container = st.container()
                 # Add delete button
                 if container.button("X", key=f"delete_{name}"):
                     del st.session_state.extracted_images[name]
                     st.rerun()
+                
                 # Display thumbnail
                 try:
-                    container.image(img_bytes, caption=name, use_column_width='auto', width=100)
-                    st.write(f"Successfully displayed image: {name}")
+                    img = Image.open(io.BytesIO(img_bytes))
+                    container.image(img, caption=name, use_column_width=True)
+                    
+                    # Add rotation slider
+                    rotation_angle = container.slider("Rotate", -180, 180, 0, key=f"rotate_{name}")
+                    if rotation_angle != 0:
+                        rotated_img = rotate_image(img, rotation_angle)
+                        container.image(rotated_img, caption=f"{name} (Rotated)", use_column_width=True)
+                        
+                        # Save button for rotated image
+                        if container.button("Save Rotation", key=f"save_rotation_{name}"):
+                            # Convert rotated image to bytes and save to session state
+                            rotated_bytes = io.BytesIO()
+                            rotated_img.save(rotated_bytes, format='PNG')
+                            st.session_state.extracted_images[name] = rotated_bytes.getvalue()
+                            st.success(f"Rotated image saved for {name}")
+                            st.rerun()
+                
                 except Exception as e:
                     st.write(f"Error displaying image {name}: {str(e)}")
-            if (i + 1) % 10 == 0:
-                st.write("")  # Add a new line after every 10 images
+            
+            if (i + 1) % 5 == 0:
+                st.write("")  # Add a new line after every 5 images
     else:
         st.write("No extracted images to display.")
-        st.write("Debug: session_state contents:")
-        st.write(st.session_state)
 
     # Resize images
     scale_factor = st.sidebar.slider("Scale Factor (0-1)", 0.1, 1.0, 0.3)
@@ -155,22 +170,15 @@ else:
     st.sidebar.warning("Please upload images.")
 
 # 在页面底部显示 session_state 中的信息
-st.write("Debug Information:")
-st.write(f"Number of extracted images: {len(st.session_state.extracted_images)}")
-st.write(f"Number of resized images: {len(st.session_state.resized_images)}")
 if 'arranged_pages' in st.session_state:
     st.write(f"Number of arranged pages: {len(st.session_state.arranged_pages)}")
 
-# 显示 extracted_images 的键
-st.write("Extracted image names:")
-st.write(list(st.session_state.extracted_images.keys()))
 
 # 尝试显示第一张提取的图片（如果有的话）
-if st.session_state.extracted_images:
-    first_image_name = next(iter(st.session_state.extracted_images))
-    first_image_bytes = st.session_state.extracted_images[first_image_name]
-    st.write(f"Attempting to display first extracted image: {first_image_name}")
-    try:
-        st.image(first_image_bytes, caption=first_image_name, use_column_width=True)
-    except Exception as e:
-        st.write(f"Error displaying first image: {str(e)}")
+# if st.session_state.extracted_images:
+#     first_image_name = next(iter(st.session_state.extracted_images))
+#     first_image_bytes = st.session_state.extracted_images[first_image_name]
+#     try:
+#         st.image(first_image_bytes, caption=first_image_name, use_column_width=True)
+#     except Exception as e:
+#         st.write(f"Error displaying first image: {str(e)}")

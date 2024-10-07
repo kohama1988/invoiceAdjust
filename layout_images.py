@@ -11,7 +11,7 @@ MIN_MARGIN = 50
 MIN_SPACING = 20
 
 # 字体设置
-FONT_SIZE = 60
+FONT_SIZE = 80
 FONT_COLOR = (0, 0, 0)  # 黑色
 
 # 使用默认字体
@@ -81,7 +81,7 @@ def add_filename_to_image(draw, filename, position):
     text_width = right - left
     text_height = bottom - top
     x, y = position
-    draw.text((x+20, y - text_height +30), filename_without_ext, font=font, fill=FONT_COLOR)
+    draw.text((x+20, y - text_height +50), filename_without_ext, font=font, fill=FONT_COLOR)
 
 def create_pages(pages, resized_images):
     result_pages = []
@@ -104,6 +104,3 @@ def main(resized_images):
     print(f"Total pages created: {len(result_pages)}")
     
     return result_pages
-
-if __name__ == "__main__":
-    main()

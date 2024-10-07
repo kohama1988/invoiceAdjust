@@ -51,7 +51,3 @@ def process_images(input_folder, output_folder):
         print(f"  调整后尺寸: {resized_width}x{resized_height}")
         print()
 
-if __name__ == "__main__":
-    after_folder = 'after'
-    resize_folder = 'resize'
-    process_images(after_folder, resize_folder)
