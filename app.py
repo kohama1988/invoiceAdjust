@@ -4,6 +4,10 @@ import io
 from process_receipt import detectAndCorrectReceipt
 from resize import resize_image
 from layout_images import layout_images, create_pages, main
+import logging
+
+# 设置日志
+logging.basicConfig(level=logging.INFO)
 
 # Set page title and layout
 st.set_page_config(layout="wide")
@@ -61,16 +65,22 @@ if uploaded_files:
                     extracted_image.save(img_byte_arr, format='PNG')
                     img_byte_arr = img_byte_arr.getvalue()
                     st.session_state.extracted_images[new_image_name] = img_byte_arr  # Save to session state
+                    logging.info(f"Successfully extracted and saved image: {new_image_name}")
+                    st.write(f"Extracted image size: {len(img_byte_arr)} bytes")  # 添加调试信息
+                else:
+                    logging.warning(f"Failed to extract image: {new_image_name}")
 
                 # Update progress bar and percentage
                 progress = (idx + 1) / total_images
                 progress_bar.progress(progress)
 
         st.sidebar.success("Receipts extracted successfully!")
+        logging.info(f"Total extracted images: {len(st.session_state.extracted_images)}")
 
     # Display extracted images as thumbnails with delete button
     if st.session_state.extracted_images:
         st.subheader("Extracted Receipts")
+        st.write(f"Number of extracted images: {len(st.session_state.extracted_images)}")
         cols = st.columns(10)  # Display 10 images per row
         for i, (name, img_bytes) in enumerate(list(st.session_state.extracted_images.items())):
             with cols[i % 10]:  # Change row every 10 images
@@ -81,9 +91,16 @@ if uploaded_files:
                     del st.session_state.extracted_images[name]
                     st.rerun()
                 # Display thumbnail
-                container.image(img_bytes, caption=name, use_column_width='auto', width=100)
+                try:
+                    container.image(img_bytes, caption=name, use_column_width='auto', width=100)
+                    logging.info(f"Successfully displayed image: {name}")
+                except Exception as e:
+                    logging.error(f"Failed to display image {name}: {str(e)}")
+                    st.write(f"Error displaying image {name}: {str(e)}")  # 添加错误信息到页面
             if (i + 1) % 10 == 0:
                 st.write("")  # Add a new line after every 10 images
+    else:
+        st.write("No extracted images to display.")
 
     # Resize images
     scale_factor = st.sidebar.slider("Scale Factor (0-1)", 0.1, 1.0, 0.3)
@@ -102,6 +119,7 @@ if uploaded_files:
                 st.session_state.resized_images[name] = resized_img_byte_arr  # Save resized image to session state
 
             st.sidebar.success("Images resized successfully!")
+            logging.info(f"Total resized images: {len(st.session_state.resized_images)}")
 
     # Auto arrange
     if st.sidebar.button("Auto Arrange"):
@@ -129,3 +147,24 @@ if uploaded_files:
 
 else:
     st.sidebar.warning("Please upload images.")
+
+# 在页面底部显示 session_state 中的信息
+st.write("Debug Information:")
+st.write(f"Number of extracted images: {len(st.session_state.extracted_images)}")
+st.write(f"Number of resized images: {len(st.session_state.resized_images)}")
+if 'arranged_pages' in st.session_state:
+    st.write(f"Number of arranged pages: {len(st.session_state.arranged_pages)}")
+
+# 显示 extracted_images 的键
+st.write("Extracted image names:")
+st.write(list(st.session_state.extracted_images.keys()))
+
+# 尝试显示第一张提取的图片（如果有的话）
+if st.session_state.extracted_images:
+    first_image_name = next(iter(st.session_state.extracted_images))
+    first_image_bytes = st.session_state.extracted_images[first_image_name]
+    st.write(f"Attempting to display first extracted image: {first_image_name}")
+    try:
+        st.image(first_image_bytes, caption=first_image_name, use_column_width=True)
+    except Exception as e:
+        st.write(f"Error displaying first image: {str(e)}")
