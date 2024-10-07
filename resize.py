@@ -6,22 +6,11 @@ def get_image_size(image_path):
     with Image.open(image_path) as img:
         return img.size
 
-def resize_image(image_path, output_path, scale_factor=0.28):
-    # 读取图像
-    img = cv2.imread(image_path)
-    
-    # 获取原始尺寸
-    height, width = img.shape[:2]
-    
-    # 计算新的尺寸
-    new_width = int(width * scale_factor)
-    new_height = int(height * scale_factor)
-    
-    # 调整图像大小
-    resized_img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
-    
-    # 保存调整大小后的图像
-    cv2.imwrite(output_path, resized_img)
+def resize_image(image, scale_factor):
+    """调整图像大小并返回调整后的图像对象"""
+    new_size = (int(image.width * scale_factor), int(image.height * scale_factor))
+    resized_image = image.resize(new_size, Image.Resampling.LANCZOS)  # 使用 LANCZOS 替代 ANTIALIAS
+    return resized_image
 
 def process_images(input_folder, output_folder):
     # 确保输入文件夹路径存在
@@ -52,10 +41,10 @@ def process_images(input_folder, output_folder):
         original_width, original_height = get_image_size(input_path)
         
         # 调整图像大小并保存
-        resize_image(input_path, output_path)
+        resized_image = resize_image(input_path, 0.28)
         
         # 获取调整后的尺寸
-        resized_width, resized_height = get_image_size(output_path)
+        resized_width, resized_height = resized_image.size
         
         print(f"图片: {image_file}")
         print(f"  原始尺寸: {original_width}x{original_height}")

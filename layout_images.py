@@ -7,11 +7,11 @@ A4_WIDTH = 2480
 A4_HEIGHT = 3508
 
 # 最小边距和图片间距
-MIN_MARGIN = 5
-MIN_SPACING = 5
+MIN_MARGIN = 50
+MIN_SPACING = 20
 
 # 字体设置
-FONT_SIZE = 60  # 增大字体大小
+FONT_SIZE = 60
 FONT_COLOR = (0, 0, 0)  # 黑色
 
 # 使用默认字体
@@ -74,43 +74,36 @@ def layout_images(image_sizes):
 
     return pages
 
-def add_filename_to_image(img, filename):
-    draw = ImageDraw.Draw(img)
-    font = ImageFont.load_default(size=FONT_SIZE)  # 使用默认字体
-    
-    # 移除文件扩展名
-    filename_without_ext = os.path.splitext(filename)[0]
-    
-    # 添加文字阴影以增加可读性
-    shadow_color = (0, 0, 0)  # 黑色阴影
-    draw.text((21, 21), filename_without_ext, font=font, fill=shadow_color)
-    
-    # 添加黑色文字
-    draw.text((20, 20), filename_without_ext, font=font, fill=FONT_COLOR)
+def add_filename_to_image(draw, filename, position):
+    font = ImageFont.load_default().font_variant(size=FONT_SIZE)
+    filename_without_ext = filename.rsplit('.', 1)[0]
+    left, top, right, bottom = draw.textbbox((0, 0), filename_without_ext, font=font)
+    text_width = right - left
+    text_height = bottom - top
+    x, y = position
+    draw.text((x+20, y - text_height +30), filename_without_ext, font=font, fill=FONT_COLOR)
 
-def create_pages(pages, input_folder, output_folder):
+def create_pages(pages, resized_images):
+    result_pages = []
     for i, page in enumerate(pages):
         canvas = Image.new('RGB', (A4_WIDTH, A4_HEIGHT), 'white')
+        draw = ImageDraw.Draw(canvas)
         for filename, size, position in page:
-            with Image.open(os.path.join(input_folder, filename)) as img:
-                add_filename_to_image(img, filename)
-                canvas.paste(img, position)
-        canvas.save(os.path.join(output_folder, f'page_{i+1}.png'))
-        print(f'Created page_{i+1}.png with {len(page)} images')
+            img = resized_images[filename]
+            canvas.paste(img, position)
+            add_filename_to_image(draw, filename, position)
+        result_pages.append(canvas)
+    return result_pages
 
-def main():
-    input_folder = 'resize'
-    output_folder = 'layout'
-
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-
-    image_sizes = get_image_sizes(input_folder)
+def main(resized_images):
+    image_sizes = [(name, img.size) for name, img in resized_images.items()]
     pages = layout_images(image_sizes)
-    create_pages(pages, input_folder, output_folder)
+    result_pages = create_pages(pages, resized_images)
     
     print(f"Total images processed: {len(image_sizes)}")
-    print(f"Total pages created: {len(pages)}")
+    print(f"Total pages created: {len(result_pages)}")
+    
+    return result_pages
 
 if __name__ == "__main__":
     main()
