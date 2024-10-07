@@ -1,10 +1,18 @@
 import cv2
 import numpy as np
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils import detectTextOrientation, rotateImage
+import re
 
-def process_single_image(image_path, receipts_folder):
+def slugify(value):
+    """将字符串转换为适合文件名的格式"""
+    value = str(value)
+    value = value.strip().lower()
+    value = re.sub(r'[-\s]+', '-', value)  # 替换空格和连字符
+    value = re.sub(r'[^\w\-]', '', value)  # 移除非字母数字字符
+    return value
+
+def process_single_image(image_path, new_image_name, receipts_folder):
     try:
         image = cv2.imread(image_path)
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -42,7 +50,9 @@ def process_single_image(image_path, receipts_folder):
             else:
                 rotated = warped
 
-            output_path = os.path.join(receipts_folder, os.path.basename(image_path))
+            # 使用 slugify 处理文件名
+            safe_image_name = slugify(new_image_name)
+            output_path = os.path.join(receipts_folder, f"{safe_image_name}.jpg")  # 确保使用 .jpg 扩展名
             cv2.imwrite(output_path, rotated)
             print(f"Processed and saved: {output_path}")
         else:
@@ -51,26 +61,10 @@ def process_single_image(image_path, receipts_folder):
     except Exception as e:
         print(f"Error processing {image_path}: {str(e)}")
 
-    return os.path.basename(image_path)
-
-def detectAndCorrectReceipt(image_folder, progress_callback=None):
-    receipts_folder = os.path.join(image_folder, 'receipts')
-    if not os.path.exists(receipts_folder):
-        os.makedirs(receipts_folder)
-
-    image_files = [f for f in os.listdir(image_folder) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-    total_images = len(image_files)
-
-    processed_count = 0
-    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-        future_to_image = {executor.submit(process_single_image, os.path.join(image_folder, image), receipts_folder): image for image in image_files}
-        for future in as_completed(future_to_image):
-            processed_count += 1
-            if progress_callback:
-                progress_callback(int(processed_count / total_images * 100), processed_count, total_images)
-
-    print("所有图片处理完成")
+def detectAndCorrectReceipt(image_path, new_image_name, receipts_folder):
+    """处理并提取发票部分"""
+    process_single_image(image_path, new_image_name, receipts_folder)
 
 # 处理图片
 if __name__ == "__main__":
-    detectAndCorrectReceipt('receipt/IMG_4109.jpg')
+    detectAndCorrectReceipt('receipt/IMG_4109.jpg', 'new_image_name', 'receipts')

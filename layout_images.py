@@ -11,8 +11,11 @@ MIN_MARGIN = 5
 MIN_SPACING = 5
 
 # 字体设置
-FONT_SIZE = 50
-FONT_COLOR = (0, 0, 0)  # 蓝色
+FONT_SIZE = 60  # 增大字体大小
+FONT_COLOR = (0, 0, 0)  # 黑色
+
+# 使用默认字体
+FONT_PATH = None  # 使用默认字体
 
 def get_image_sizes(folder_path):
     image_sizes = []
@@ -73,7 +76,7 @@ def layout_images(image_sizes):
 
 def add_filename_to_image(img, filename):
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", FONT_SIZE)
+    font = ImageFont.load_default(size=FONT_SIZE)  # 使用默认字体
     
     # 移除文件扩展名
     filename_without_ext = os.path.splitext(filename)[0]
@@ -82,7 +85,7 @@ def add_filename_to_image(img, filename):
     shadow_color = (0, 0, 0)  # 黑色阴影
     draw.text((21, 21), filename_without_ext, font=font, fill=shadow_color)
     
-    # 添加蓝色文字
+    # 添加黑色文字
     draw.text((20, 20), filename_without_ext, font=font, fill=FONT_COLOR)
 
 def create_pages(pages, input_folder, output_folder):
