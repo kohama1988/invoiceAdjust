@@ -22,7 +22,7 @@ matplotlib==3.9.2
 mdurl==0.1.2
 narwhals==1.9.1
 numpy==2.0.2
-opencv-python==4.10.0.84
+opencv-python-headless
 packaging==24.1
 pandas==2.2.3
 pillow==10.4.0
