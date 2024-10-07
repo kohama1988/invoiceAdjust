@@ -4,6 +4,15 @@ from PIL import Image
 from utils import detectTextOrientation, rotateImage
 import io
 import re
+import easyocr
+import logging
+import streamlit as st
+
+# 初始化 EasyOCR reader（只需要执行一次）
+reader = easyocr.Reader(['en'])  # 使用英语模型，可以根据需要添加其他语言
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def slugify(value):
     """将字符串转换为适合文件名的格式"""
@@ -79,7 +88,7 @@ def process_single_image(uploaded_file, new_image_name):
             return None
 
     except Exception as e:
-        print(f"Error processing the image: {str(e)}")
+        logger.exception(f"Error processing image {new_image_name}: {str(e)}")
         return None
 
 def detectAndCorrectReceipt(uploaded_file, new_image_name):
@@ -98,4 +107,15 @@ def detectAndCorrectReceipt(uploaded_file, new_image_name):
 
 # 处理图片
 if __name__ == "__main__":
+    OCR_METHOD = st.secrets.get("OCR_METHOD", "tesseract")
+
+    if OCR_METHOD == "tesseract":
+        # 使用 pytesseract
+        import pytesseract
+        # ... tesseract 相关代码
+    else:
+        # 使用 EasyOCR
+        import easyocr
+        # ... easyocr 相关代码
+
     detectAndCorrectReceipt('receipt/IMG_4109.jpg', 'new_image_name')
